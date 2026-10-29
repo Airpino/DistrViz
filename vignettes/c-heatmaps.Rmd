@@ -1,0 +1,131 @@
+---
+title: "3. Distributional heatmaps"
+output:
+  rmarkdown::html_vignette:
+    math_method: mathjax
+vignette: >
+  %\VignetteIndexEntry{3. Distributional heatmaps}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 7,
+                      dpi = 72, out.width = "100%")
+has_cub <- requireNamespace("CUB", quietly = TRUE)
+knitr::opts_chunk$set(eval = has_cub)
+```
+
+```{r, eval = !has_cub, echo = FALSE, results = "asis"}
+cat("**This vignette needs the 'CUB' package (for the `univer` data), which is not installed: code is shown but not run.**")
+```
+
+A **distributional heatmap** shows a whole distributional data table at once.
+As in a classical heatmap, rows are units and columns are variables, but each
+cell is not a single colour: it is a horizontal strip split into segments
+whose widths are the probabilities of the values and whose colours are the
+positions of the values in the range of the variable. Each cell is thus a
+"stacked bar" of the distribution, and a mostly green cell is a cell with
+high values.
+
+```{r}
+library(DistrViz)
+library(DDAWASS)
+
+data(univer, package = "CUB")
+univer$Faculty <- factor(sprintf("F%02d", univer$faculty))
+univer$Gender  <- factor(univer$gender, levels = 0:1, labels = c("M", "W"))
+items <- c("informat", "willingn", "officeho", "compete", "global")
+M <- data2MatD(univer, unit = c("Faculty", "Gender"), vars = items,
+               support = 1:7, min.n = 10)
+dv <- dv_data(M, ranges = c(1, 7))
+```
+
+## The default heatmap
+
+```{r}
+hm <- dist_heatmap(dv)
+hm
+```
+
+Rows and columns are reordered by two hierarchical clusterings, drawn as
+dendrograms:
+
+* **rows**: Ward's method (by default) on the L2 Wasserstein distance between
+  the units, computed on all the variables (`DDAWASS::WD_hclust()` for
+  discrete distributions, `HistDAWass::WH_hclust()` for histograms);
+* **columns**: complete linkage on the distance $\sqrt{1 - r^2}$ between
+  variables, where $r$ is the Wasserstein correlation
+  (`DDAWASS::WD.correlation()`); with `col_dist = "1-r"` negatively correlated
+  variables are kept apart.
+
+The clustering results are stored in the `"clustering"` attribute of the plot
+and can be used elsewhere, e.g. in a Green Eyes grid:
+
+```{r}
+cl <- attr(hm, "clustering")
+cutree(cl$hc_rows, 3)
+```
+
+In the heatmap the cluster of faculties F06 and F13 stands out because of
+the red and orange segments in all the columns, while the office hours
+(`officeho`) are the aspect with the lowest ratings for most groups.
+
+## Options
+
+Clustering can be switched off for rows or columns, and the agglomeration
+methods can be changed. The legend labels report the ends and the middle of
+the range of the variables when it is common to all of them.
+
+```{r, fig.height = 6}
+dist_heatmap(dv, cluster_cols = FALSE, row_method = "average",
+             palette = "RdYlGn", gap_y = 0.25, angle_x = 0)
+```
+
+With `cluster_cols = "tsp"` the columns are ordered by a short Hamiltonian
+path through the variables (see `dv_var_order()`), which puts correlated
+variables side by side without drawing a dendrogram:
+
+```{r, fig.height = 6}
+dist_heatmap(dv, cluster_cols = "tsp", col_dist = "sqrt(2(1-r))")
+```
+
+`style = "dark"` gives a black background, and the gaps between cells can be
+controlled with `gap_x` and `gap_y`:
+
+```{r, fig.height = 6}
+dist_heatmap(dv, style = "dark", palette = "Zissou 1", gap_x = 0, gap_y = 0.05)
+```
+
+## Histogram data
+
+For matrices of histograms the distributions are discretized into
+`n_levels` equal-width classes. With `scheme = "standardized"` the colours
+span $\pm 3$ Wasserstein standard deviations around the mean of each
+variable, so that variables on different scales are comparable.
+
+```{r, fig.height = 5.5}
+dist_heatmap(HistDAWass::BLOOD, n_levels = 20, scheme = "standardized",
+             palette = "Zissou 1", style = "dark")
+```
+
+By default the clustering is computed on the original histograms
+(`cluster_on = "source"`); with `cluster_on = "discretized"` it is computed on
+the discretized distributions that are drawn.
+
+## Interactive heatmaps
+
+With `interactive = TRUE` (and the **plotly** package installed) the heatmap
+is converted to an interactive plot: hovering over a segment shows the unit,
+the variable, the value (or the class bounds for histograms), its probability
+and the cumulative probability (not run here, to keep the vignette small).
+
+```{r, eval = FALSE}
+dist_heatmap(dv, interactive = TRUE)
+```
+
+## Reference
+
+Irpino A., Verde R. (2015). Basic statistics for distributional symbolic
+variables: a new metric-based approach. *Advances in Data Analysis and
+Classification*, 9(2), 143-175. doi:10.1007/s11634-014-0176-4

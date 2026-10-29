@@ -1,0 +1,170 @@
+---
+title: "1. From data to pictures: the dvdata object"
+output:
+  rmarkdown::html_vignette:
+    math_method: mathjax
+vignette: >
+  %\VignetteIndexEntry{1. From data to pictures: the dvdata object}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 4.5,
+                      dpi = 72, out.width = "100%")
+has_cub <- requireNamespace("CUB", quietly = TRUE)
+knitr::opts_chunk$set(eval = has_cub)
+```
+
+```{r, eval = !has_cub, echo = FALSE, results = "asis"}
+cat("**This vignette needs the 'CUB' package (for the `univer` data), which is not installed: code is shown but not run.**")
+```
+
+**DistrViz** draws *distributional data tables*: tables where each cell
+(a statistical unit, i.e. a row, observed on a variable, i.e. a column) is a
+whole distribution rather than a single number. Two kinds of tables are
+supported:
+
+* matrices of **histograms**, the `MatH` objects of the **HistDAWass**
+  package (continuous variables);
+* matrices of **discrete distributions**, the `MatD` objects of the
+  **DDAWASS** package (e.g. ratings on a Likert scale, counts).
+
+All the plotting functions (`gei_plot()`, `gei_grid()`, `dist_heatmap()`)
+accept these objects directly, as well as raw data frames, but they all work
+on a common intermediate object, built by `dv_data()`. This vignette explains
+how `dv_data()` maps the distributions to colours; the next two vignettes
+present the Green Eyes plots and the distributional heatmaps.
+
+```{r}
+library(DistrViz)
+library(DDAWASS)
+```
+
+## The data
+
+We use the same data of the **DDAWASS** vignettes: the `univer` survey of the
+**CUB** package, where 2179 students of the University of Naples Federico II
+rated on a 1-7 scale (1 = extremely unsatisfied, 7 = extremely satisfied) five
+aspects of the orientation services: the information received (`informat`),
+the willingness of the staff (`willingn`), the office hours (`officeho`), the
+competence of the staff (`compete`) and the global satisfaction (`global`).
+
+```{r}
+data(univer, package = "CUB")
+univer$Faculty <- factor(sprintf("F%02d", univer$faculty))
+univer$Gender  <- factor(univer$gender, levels = 0:1, labels = c("M", "W"))
+items <- c("informat", "willingn", "officeho", "compete", "global")
+```
+
+The statistical units are the groups of students defined by faculty and
+gender: each of the 26 groups is described by the five distributions of the
+ratings given by its members.
+
+```{r}
+M <- data2MatD(univer, unit = c("Faculty", "Gender"), vars = items,
+               support = 1:7, min.n = 10)
+M
+```
+
+## Building a `dvdata` object
+
+`dv_data()` turns the table into a long data frame with one row for each
+support value of each cell, together with its probability (`freq`), the
+cumulative distribution function before and after the value (`cdf_lo`,
+`cdf`) and a **colour position** `u` in $[0, 1]$.
+
+```{r}
+dv <- dv_data(M, ranges = c(1, 7))
+dv
+```
+
+The same object can be built directly from the microdata: the grouping
+columns go in `unit`, the items in `vars`, and `support` and `min.n` are
+passed to `DDAWASS::data2MatD()`. When `support` is given, its range is used
+as the colour range.
+
+```{r}
+dv2 <- dv_data(univer, unit = c("Faculty", "Gender"), vars = items,
+               support = 1:7, min.n = 10)
+all.equal(dv$df$u, dv2$df$u)
+```
+
+A table of frequencies in long format (one row for each unit, variable and
+value) is read when the `freq` column is given:
+
+```{r}
+tab <- as.data.frame(table(unit = univer$Faculty, value = univer$global))
+tab$variable <- "global"
+head(tab)
+dv_global <- dv_data(tab, unit = "unit", value = "value", freq = "Freq",
+                     ranges = c(1, 7))
+dv_global
+```
+
+## How values become colours
+
+### Discrete distributions
+
+For a `MatD`, a value $x$ of variable $j$ gets the position
+$$u = \frac{x - a_j}{b_j - a_j},$$
+where $[a_j, b_j]$ is the range of the variable. With `ranges = c(1, 7)` the
+range is the admissible range of the rating scale, so that the colour of a
+rating does not depend on the data: a 1 is always dark red, a 7 is always
+dark green. Without `ranges`, the observed range of each variable is used.
+
+When the variables are measured on **different scales** (e.g. a 0-10 scale and
+a 1-5 scale, as in many surveys), `ranges` can be a two-column matrix with one
+row per variable, so that the ends of each scale get the same colours:
+
+```{r, eval = FALSE}
+dv_data(M, ranges = cbind(min = c(0, 1, 1, 1), max = c(10, 5, 4, 2)))
+```
+
+Two other schemes are available:
+
+* `scheme = "global"`: the same (observed) range for all the variables;
+* `scheme = "standardized"`: each variable is standardized with its
+  Wasserstein mean and standard deviation, and the colours span $\pm 3$
+  standard deviations around the mean. This is useful to compare variables
+  measured on completely different scales.
+
+### Histograms
+
+A `MatH` is first discretized: the range of each variable is split into
+`n_levels` equal-width classes and each histogram is turned into the discrete
+distribution of the probabilities of the classes (see
+`DDAWASS::MatH2MatD()`). The $k$-th class gets the position
+$u = (k-1)/(n_\text{levels}-1)$. The classes span the observed range of each
+variable, or the range given in `ranges` (see the fourth vignette). The tooltips of the interactive plots report
+the class bounds.
+
+```{r}
+dvh <- dv_data(HistDAWass::BLOOD, n_levels = 12)
+dvh
+```
+
+## Palettes
+
+The positions `u` are mapped to colours by a continuous palette. The default,
+`"Paquin"`, goes from dark red (low values) to dark green (high values): it is
+the palette of the Green Eyes plots. `dv_palette()` also offers `"Hiroshige"`,
+`"Grey"` and all the palettes of `grDevices::hcl.pals()`; a vector of colours
+can be used as well.
+
+```{r, fig.height = 2.6}
+show_pal <- function(pals, n = 64) {
+  op <- par(mar = c(0.5, 7, 0.5, 0.5))
+  on.exit(par(op))
+  plot(NULL, xlim = c(0, 1), ylim = c(0.5, length(pals) + 0.5), axes = FALSE,
+       xlab = "", ylab = "")
+  for (i in seq_along(pals)) {
+    cl <- dv_palette(pals[i], n)
+    rect((seq_len(n) - 1) / n, i - 0.4, seq_len(n) / n, i + 0.4, col = cl, border = NA)
+  }
+  axis(2, at = seq_along(pals), labels = pals, las = 1, tick = FALSE)
+}
+show_pal(c("Paquin", "Hiroshige", "RdYlGn", "Zissou 1", "Blue-Red 3", "Viridis"))
+```
+
+All the plotting functions have a `palette` and a `reverse` argument.

@@ -1,0 +1,15 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+*.Rcheck/
+*.tar.gz
+vignettes/*.html
+vignettes/*.R
+inst/doc
+docs/
+tests/testthat/testthat-problems.rds
+.httr-oauth
+.DS_Store
+.quarto

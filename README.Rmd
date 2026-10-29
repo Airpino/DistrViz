@@ -1,0 +1,66 @@
+---
+output: github_document
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.path = "man/figures/README-",
+                      dpi = 96, out.width = "100%")
+```
+
+# DistrViz
+
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/Airpino/DistrViz/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/Airpino/DistrViz/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
+
+**DistrViz** draws distributional data tables, where each cell is a whole
+distribution: matrices of histograms (`MatH` objects of
+[HistDAWass](https://CRAN.R-project.org/package=HistDAWass)), matrices of
+discrete distributions (`MatD` objects of
+[DDAWASS](https://github.com/Airpino/DDAWASS)), or raw and tabulated discrete
+data (e.g. ratings on a Likert scale).
+
+* **Green Eyes plots** (`gei_plot()`, `gei_grid()`): a circular display of all
+  the distributions observed on a unit (Crocetta, Irpino, Antonucci and Marin,
+  2025, [doi:10.1007/s11135-024-01956-0](https://doi.org/10.1007/s11135-024-01956-0)).
+* **Green Eyes on a factorial plane** (`gei_pca()`): the eyes placed at the
+  positions of the units on a quantile PCA/MFA, with a key eye (the barycenter
+  of all the units or of each group); an interactive version (**ggiraph**)
+  has tooltips, hides eyes with a click or a lasso, zooms, and has switches
+  and a size slider.
+* **Flower plots** (`flower_plot()`, `flower_grid()`): each variable is a stem
+  with petals at its values, as wide as their probabilities.
+* **Difference eyes** (`gei_diff()`): where the distributions of each unit
+  depart from the barycenter (or from a reference unit or group).
+* **Ordering of the sectors** by the shortest Hamiltonian cycle through the
+  variables (`var_order = "tsp"`, `dv_var_order()`).
+* **Distributional heatmaps** (`dist_heatmap()`): each cell is a stacked bar of
+  the distribution; rows and columns are ordered by Wasserstein-based
+  hierarchical clustering, with dendrograms. Interactive version with
+  **plotly**.
+
+## Installation
+
+```r
+# install.packages("remotes")
+remotes::install_github("Airpino/DDAWASS")
+remotes::install_github("Airpino/DistrViz")
+```
+
+## Example
+
+```{r example, fig.width = 8, fig.height = 4}
+library(DistrViz)
+dv <- dv_data(DDAWASS::Satisfaction, ranges = c(0, 10))
+gei_grid(dv, rows = 1:8, ncol = 4)
+```
+
+```{r pca, fig.width = 8, fig.height = 4.5}
+gei_pca(dv, var_order = "tsp")
+```
+
+```{r heatmap, fig.width = 7, fig.height = 6}
+dist_heatmap(dv)
+```
+
+See the vignettes for the details: `browseVignettes("DistrViz")`.

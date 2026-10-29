@@ -1,0 +1,349 @@
+---
+title: "4. Histogram data: Chinese climatic stations"
+output:
+  rmarkdown::html_vignette:
+    math_method: mathjax
+vignette: >
+  %\VignetteIndexEntry{4. Histogram data: Chinese climatic stations}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 4.5,
+                      dpi = 72, out.width = "100%")
+```
+
+The previous vignettes used discrete distributions (ratings on a 1-7 scale).
+This one shows how **DistrViz** handles **histogram data**, i.e. the `MatH`
+objects of the **HistDAWass** package, where each cell is the empirical
+distribution of a continuous variable.
+
+```{r}
+library(DistrViz)
+library(HistDAWass)
+library(ggplot2)
+```
+
+## The data
+
+`China_Month` (in **HistDAWass**) contains, for 60 meteorological stations of
+China, the histograms of several climatic variables for each month, built
+from the monthly records of many years. We start with the **mean monthly
+temperatures** (°C): a table of 60 stations × 12 months, where each cell is
+the distribution of the mean temperature of that month across the years.
+
+```{r}
+vars <- paste0("mean.temp_", month.abb)
+Temp <- China_Month[, match(vars, colnames(China_Month@M))]
+colnames(Temp@M) <- month.abb
+rownames(Temp@M) <- sub("_[0-9]+$", "", rownames(Temp@M))   # drop the station codes
+Temp[1:4, 1:3]
+```
+
+(Columns are selected by their *index*: `match()` turns the names into
+positions.)
+
+## From histograms to colours: `n_levels`
+
+To be drawn, each histogram is turned into a discrete distribution: the range
+of the variable is split into `n_levels` classes of equal width and each class
+gets the probability that the histogram gives to it
+(`DDAWASS::MatH2MatD()`). The $k$-th class gets the colour position
+$u = (k - 1)/(n_\text{levels} - 1)$, so the first class has the colour of the
+low end of the palette and the last one the colour of the high end.
+
+```{r}
+dv <- dv_data(Temp, n_levels = 15, scheme = "global")
+dv
+```
+
+The class bounds are stored in the object (and shown in the tooltips of the
+interactive heatmaps):
+
+```{r}
+round(dv$breaks$Jan, 1)
+```
+
+`n_levels` sets the resolution of the picture: few classes give a coarse,
+"posterized" picture, many classes a smooth one. 10-20 classes are usually
+a good compromise.
+
+```{r, fig.width = 3.4, fig.height = 3.6, out.width = "48%", fig.show = "hold"}
+gei_plot(Temp, row = "HaErBin", n_levels = 5, scheme = "global",
+         palette = "Blue-Red 3", title = "HaErBin, 5 classes")
+gei_plot(Temp, row = "HaErBin", n_levels = 30, scheme = "global",
+         palette = "Blue-Red 3", title = "HaErBin, 30 classes")
+```
+
+## The annual cycle in a Green Eyes plot
+
+With the twelve months as sectors, a Green Eyes plot becomes a **clock**:
+January is at the top and the months follow clockwise. We use a diverging
+blue-red palette, and the global scheme so that the same colour means the same
+temperature in all the months. Here are twelve stations, ordered from north
+to south using the coordinates in `stations_coordinates`:
+
+```{r}
+lat <- with(stations_coordinates, LAT.deg + LAT.min / 60)
+names(lat) <- rownames(Temp@M)
+sel <- c("Hailaer", "HaErBin", "HuHeHaoTe", "BeiJing", "LanZhou", "LaSa",
+         "XiAn", "ShangHai", "ChengDu", "KunMing", "GuangZhou", "HaiKou")
+sel <- sel[order(-lat[sel])]
+```
+
+```{r, fig.height = 3.6}
+gei_grid(dv, rows = sel, ncol = 6, palette = "Blue-Red 3")
+```
+
+(The same eyes with the white fixed at 0 °C are obtained with the `ranges`
+argument, see below.)
+
+Northern stations have deep blue winters (the blue band starts at the
+pupil: the whole distribution is below zero) and a sharp contrast with the
+summer; going south the winter sectors turn white and then red, and in HaiKou
+(Hainan island) the eye is red all around. LaSa (Lhasa, 3650 m) and KunMing
+(1890 m) have mild summers because of their altitude.
+
+### The calendar is the shortest Hamiltonian cycle
+
+The order of the months was taken from the calendar. Would an automatic order
+find it? `dv_var_order()` looks for the shortest Hamiltonian cycle through the
+variables, using the correlation distance $\sqrt{2(1-r)}$ between the
+Wasserstein correlations of the months:
+
+```{r}
+dv_var_order(Temp)$labels
+```
+
+The cycle found is exactly the annual cycle: each month is most correlated
+with the previous and the following one, and December closes the circle with
+January. With 12 variables the cycle is found heuristically (exact enumeration
+is used up to 9 variables).
+
+## Colour schemes
+
+The `scheme` argument of `dv_data()` (and of all the plotting functions)
+decides how the classes are defined:
+
+* `"variable"` (default): each variable has its own range. Colours show
+  where a distribution lies **with respect to the other units on the same
+  variable**: a red January is a warm January, even if it is colder than a
+  blue July.
+* `"global"`: one range for all the variables. Colours have the same meaning
+  everywhere; this is the natural choice when all the variables are measured on
+  the same scale, as the temperatures here.
+* `"standardized"`: each variable is standardized with its Wasserstein mean
+  and standard deviation and the classes span $\pm 3$ standard deviations.
+  This is the choice for variables measured on **different scales**.
+
+The difference between the first two schemes is clear in a heatmap. With
+`scheme = "global"` (and without reordering the months) the annual cycle
+dominates the picture; the legend reports the temperatures, since the range is
+common to all the months. Note that the white of the diverging palette is at
+the middle of the observed range (about -2 °C), not at 0 °C.
+
+```{r, fig.height = 8.5}
+dist_heatmap(dv, cluster_cols = FALSE, palette = "Blue-Red 3", label_size = 7)
+```
+
+To fix the classes, give `dv_data()` the `ranges` argument: the range is split
+into `n_levels` classes of equal width. With a range symmetric around 0 and an
+odd number of classes, the central class is centred on 0 °C and gets the white
+of the palette: blue now means *below freezing*. Here 19 classes of 4 °C
+cover $[-38, 38]$ °C.
+
+```{r, fig.height = 8.5}
+dv0 <- dv_data(Temp, n_levels = 19, ranges = c(-38, 38))
+dist_heatmap(dv0, cluster_cols = FALSE, palette = "Blue-Red 3", label_size = 7)
+```
+
+With `scheme = "variable"` each month is compared with the same month in the
+other stations: the annual cycle disappears and the geographical contrasts
+(north-south, coast-inland, altitude) come out within each month.
+
+```{r, fig.height = 8.5}
+dist_heatmap(Temp, n_levels = 15, scheme = "variable", cluster_cols = FALSE,
+             palette = "Blue-Red 3", label_size = 7)
+```
+
+### Variables on different scales
+
+Let us now take six different variables measured in summer (from
+`China_Seas`, the seasonal version of the data): temperature (°C),
+precipitation (mm), relative humidity (%), sunshine duration (hours), wind
+speed (m/s) and cloud amount (%).
+
+```{r}
+vs <- c("mean.temp_Summer", "tot.precip_Summer", "mean.rel.hum_Summer",
+        "sunshine.dur_Summer", "mean.wind.speed_Summer", "mean.cloud.amount_Summer")
+Summer <- China_Seas[, match(vs, colnames(China_Seas@M))]
+colnames(Summer@M) <- c("temperature", "precipitation", "humidity", "sunshine",
+                        "wind", "clouds")
+rownames(Summer@M) <- rownames(Temp@M)
+```
+
+A global range would make no sense here (precipitation, in hundreds of
+millimetres, would squeeze all the other variables into the first class). The
+standardized scheme centres the palette on the Wasserstein mean of each
+variable: yellow is "average", blue is below and red above the mean, by up to 3
+standard deviations.
+
+```{r, fig.height = 8.5}
+dist_heatmap(Summer, n_levels = 12, scheme = "standardized", palette = "Zissou 1",
+             label_size = 7)
+```
+
+With the default distance between variables, $\sqrt{1 - r^2}$, strongly
+*anti*-correlated variables are close as well as correlated ones: sunshine
+and cloud amount ($r = -0.80$) join first, then humidity and precipitation are
+added, while wind, almost uncorrelated with the others, joins last. Use
+`col_dist = "1-r"` to keep negatively correlated variables apart.
+
+```{r}
+round(WH.correlation(Summer), 2)
+```
+
+The first split of the stations separates the drier and sunnier summers from
+the wetter and cloudier ones. The cluster means of the six variables (the means
+of the histograms) make it explicit:
+
+```{r}
+hm <- dist_heatmap(Summer, n_levels = 12, scheme = "standardized")
+k <- cutree(attr(hm, "clustering")$hc_rows, 2)
+m <- get.MatH.stats(Summer, stat = "mean")$mat
+round(aggregate(m, list(cluster = k), mean), 1)
+split(names(k), k)
+```
+
+The first group collects the north-east, the north-west and some inland
+stations of the south-east (e.g. NanChang, ChangSha); the second the coastal,
+southern and south-western stations.
+
+## Clustering the original or the discretized histograms
+
+The dendrograms of `dist_heatmap()` (and the orderings of `gei_grid()` with
+`order = "cluster"`) are computed by default on the **original histograms**
+(`cluster_on = "source"`), with `HistDAWass::WH_hclust()` for the rows and
+`HistDAWass::WH.correlation()` for the columns. The drawn picture is an
+approximation of the data, but the clustering is not affected by it. With
+`cluster_on = "discretized"` the clustering is computed on the discretized
+distributions, i.e. on exactly what is drawn. With a reasonable number of
+classes the two partitions are very similar:
+
+```{r}
+cl_src <- dv_cluster(dv_data(Temp, n_levels = 15, scheme = "global"))
+cl_dis <- dv_cluster(dv_data(Temp, n_levels = 15, scheme = "global"), on = "discretized")
+table(source = cutree(cl_src$hc_rows, 4), discretized = cutree(cl_dis$hc_rows, 4))
+```
+
+The clustering results can also be used outside **DistrViz**: here the four
+clusters of stations are drawn on a map.
+
+```{r, fig.width = 6, fig.height = 4.5, out.width = "85%", fig.align = "center"}
+coords <- data.frame(station = rownames(Temp@M),
+                     lon = with(stations_coordinates, LON.deg + LON.min / 60),
+                     lat = lat,
+                     cluster = factor(cutree(cl_src$hc_rows, 4)))
+ggplot(coords, aes(lon, lat, colour = cluster)) +
+  geom_point(size = 2.5) +
+  coord_quickmap() +
+  labs(x = "longitude", y = "latitude",
+       title = "Ward clustering of the monthly temperature histograms") +
+  theme_minimal()
+```
+
+and the eyes of all the stations, grouped by cluster:
+
+```{r, fig.height = 12}
+gei_grid(dv, groups = cutree(cl_src$hc_rows, 4), ncol = 6, palette = "Blue-Red 3")
+```
+
+## Stations on the factorial plane
+
+Finally, `gei_pca()` puts each eye at the position of the station on the first
+factorial plane of the quantile-based MFA of the twelve months
+(`HistDAWass::WH.MultiplePCA()`). Each eye has a diameter equal to one tenth
+of the smallest side of the cloud of points.
+
+```{r, fig.height = 5.5}
+gei_pca(dv0, palette = "Blue-Red 3", label_size = 2)
+```
+
+The key on the right is the eye of the barycenter of the 60 stations
+(the Wasserstein barycenter of the histograms of each month, discretized with
+the same classes as the eyes): it tells which month is in each sector. With the
+four clusters found above, `key = "groups"` draws the prototype (barycenter) of
+each cluster instead, and the outline of every eye takes the colour of its
+cluster:
+
+```{r, fig.height = 5.5}
+gei_pca(dv0, palette = "Blue-Red 3", label_size = 2,
+        groups = cutree(cl_src$hc_rows, 4), key = "groups")
+```
+
+The prototypes summarise four climates: the coldest stations of the north
+and north-east (blue winters: Heilongjiang, Jilin, Inner Mongolia, Urumqi), the
+rest of the north and north-west (winters around or below 0 °C), the centre
+and south-west, and the warm south.
+
+The first axis is the north-south (cold-warm) gradient, from the deep blue
+winters of Heilongjiang and Inner Mongolia on the left to the tropical south on
+the right. The second axis isolates the high-altitude stations of the
+south-west (LaSa, XiNing, KunMing, TengChong, XiChang), whose winters are mild
+for their latitude and whose summers are cool.
+
+With 60 stations the eyes overlap and the names are hard to read: the
+interactive version (`interactive = TRUE`, it needs the **ggiraph** package)
+shows the name of a station when the mouse is over its eye, hides an eye with a
+click (leaving its point of application, in red; a click on the point shows it
+again), hides the eyes of a whole area with the lasso, zooms on a part of the
+plane, and has two switches (median circles, names) and a slider for the size
+of all the eyes:
+
+```{r, eval = FALSE}
+gei_pca(dv0, palette = "Blue-Red 3", label_size = 2,
+        groups = cutree(cl_src$hc_rows, 4), interactive = TRUE,
+        hidden = "HaiKou")
+```
+
+(Not run here: an interactive example is in the vignette on Green Eyes plots.)
+
+## Stations on a map
+
+The coordinates given to `gei_pca()` do not have to come from a factorial
+analysis: any matrix with two columns, one row per unit, can be used. With the
+longitude and the latitude of the stations, and a map drawn under the eyes
+(`basemap`, a data frame of polygons such as those returned by
+`ggplot2::map_data()`, which needs the **maps** package), each eye is centred
+on its station. The dashed axes of the factorial plane are not drawn,
+`axis_titles` names the axes, and `key_position` puts the key in an empty
+corner of the map instead of in a box on the right.
+
+```{r, eval = requireNamespace("maps", quietly = TRUE), fig.height = 6.2}
+lonlat <- with(stations_coordinates,
+               cbind(longitude = LON.deg + LON.min / 60, latitude = LAT.deg + LAT.min / 60))
+rownames(lonlat) <- rownames(Temp@M)
+china <- ggplot2::map_data("world", region = c("China", "Taiwan"))
+gei_pca(dv0, lonlat, basemap = china, axis_titles = c("longitude", "latitude"),
+        palette = "Blue-Red 3", size = 0.07, label_size = 1.8,
+        key_position = c(80, 23), key_size = 0.22)
+```
+
+The map shows at once the latitudinal gradient (from the blue winters of the
+north-east to the red eyes of the south coast and of Hainan), the effect of
+the distance from the sea (Jiu Quan, in the north-west at the same latitude as
+Beijing, has a January mean of -9.3 °C against -4.8 °C) and of altitude (the
+eyes of LaSa and KunMing are paler than those of their neighbours: their July
+means are 15.5 °C and 19.8 °C, against 25.8 °C in ChengDu and 28.5 °C in
+NanNing).
+
+The interactive version works on maps too: the tooltips report the longitude
+and the latitude, and the slider enlarges all the eyes around their stations.
+
+```{r, eval = FALSE}
+gei_pca(dv0, lonlat, basemap = china, axis_titles = c("longitude", "latitude"),
+        palette = "Blue-Red 3", size = 0.07, key_position = c(80, 23),
+        key_size = 0.22, interactive = TRUE)
+```
+

@@ -1,0 +1,132 @@
+---
+title: "5. Flower plots"
+output:
+  rmarkdown::html_vignette:
+    math_method: mathjax
+vignette: >
+  %\VignetteIndexEntry{5. Flower plots}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 4.5,
+                      dpi = 72, out.width = "100%")
+has_cub <- requireNamespace("CUB", quietly = TRUE)
+```
+
+A **flower plot** shows all the distributions observed on a unit as the
+petals of a flower. Each variable is a stem going from the centre outwards;
+along the stem the distance from the centre is the value (its position in the
+range of the variable, as in the other plots of the package), and at each value
+a petal opens sideways, with a width proportional to its probability and the
+colour of the value.
+
+A Green Eyes plot and a flower plot of the same unit show the same
+information in two ways: in the eye the radius is the *cumulative*
+probability, so that the eye is good at showing levels (the median, the share
+of low or high values); in the flower the radius is the *value*, so that the
+flower shows the *shape* of the distributions: modes, gaps, long tails.
+
+```{r}
+library(DistrViz)
+library(DDAWASS)
+```
+
+## Discrete distributions: one petal for each value
+
+```{r, eval = has_cub}
+data(univer, package = "CUB")
+univer$Faculty <- factor(sprintf("F%02d", univer$faculty))
+univer$Gender  <- factor(univer$gender, levels = 0:1, labels = c("M", "W"))
+items <- c("informat", "willingn", "officeho", "compete", "global")
+dv <- dv_data(univer, unit = c("Faculty", "Gender"), vars = items, support = 1:7,
+              min.n = 10)
+```
+
+For discrete distributions each support value is an elliptic petal. The
+white dots (`show_median = TRUE`) mark the medians; the sectors are ordered by
+the shortest Hamiltonian cycle through the variables (`var_order = "tsp"`, see
+`dv_var_order()`), as in the Green Eyes plots.
+
+```{r, eval = has_cub, fig.width = 5, fig.height = 5, out.width = "65%", fig.align = "center"}
+flower_plot(dv, row = "F13_M", var_order = "tsp", show_median = TRUE)
+```
+
+The flower of F13_M has petals all along the stems: the ratings of this group
+are spread over the whole scale, with a visible share of 1s and 2s (the red
+petals near the centre). Compare it with the most satisfied groups, whose
+flowers open only at the top of the stems:
+
+```{r, eval = has_cub, fig.height = 2.9}
+flower_grid(dv, rows = c("F02_W", "F07_M", "F09_M", "F13_M"), var_order = "tsp",
+            ncol = 4)
+```
+
+The flower of F07_M is a good example of what a flower shows better than an
+eye: in the office hours (`officeho`) the petals are spread over all the scale,
+a polarised distribution, while the other aspects have a single mode at the
+top.
+
+By default the widths of the petals are comparable across units (the widest
+petal of all the drawn units has the width `petal_width`, a fraction of the
+half-sector); with `width_scale = "unit"` each flower uses its own largest
+petal. Flowers can be grouped or ordered by a clustering as in `gei_grid()`:
+
+```{r, eval = has_cub, fig.height = 8.5}
+hc <- WD_hclust(dv$source, method = "ward.D2")
+flower_grid(dv, groups = cutree(hc, 3), var_order = "tsp", ncol = 6)
+```
+
+## Flowers on the factorial plane
+
+`flower_pca()` is the flower version of `gei_pca()` (see the vignette on Green
+Eyes plots): each flower is drawn at the position of its unit on the first
+factorial plane of the quantile-based MFA (`DDAWASS::WD.MultiplePCA()`), the
+outline is coloured by a partition and the key on the right is the flower of
+the barycenter of all the units, with the names of the variables. Any matrix
+of coordinates can be given instead of the factorial analysis, also with a map
+in the background (see the vignette on flower plots of histogram data).
+
+```{r, eval = has_cub, fig.height = 5}
+flower_pca(dv, var_order = "tsp", groups = cutree(hc, 3), size = 0.15, key_size = 0.5)
+```
+
+## Style
+
+The original design has a black background, a green receptacle and orange
+sepals. `style = "light"` gives a white background and `center = "plain"` a
+grey centre; any palette of `dv_palette()` can be used.
+
+```{r, eval = has_cub, fig.height = 2.9}
+flower_grid(dv, rows = c("F02_W", "F07_M", "F09_M", "F13_M"), var_order = "tsp",
+            ncol = 4, style = "light", center = "plain", palette = "Hiroshige")
+```
+
+## Histograms: violin petals
+
+For histograms the petals of the classes are joined into a violin whose
+width follows the density. The histograms are discretized into `n_levels`
+classes (30 by default for flower plots) and the profile of the violins is
+smoothed with a Gaussian kernel (`smooth`, in classes; the colours are not
+smoothed).
+
+```{r, fig.height = 5.5}
+flower_grid(HistDAWass::BLOOD, rows = 1:6, ncol = 3, palette = "Zissou 1",
+            labels = TRUE)
+```
+
+The monthly temperatures of a station of the `China_Month` data make a
+flower with twelve petals; with a common scale for all the months
+(`scheme = "global"`) the petals move outwards in summer and inwards in
+winter, and their width shows the variability of each month across the
+years.
+
+```{r, fig.width = 5.5, fig.height = 5.5, out.width = "70%", fig.align = "center"}
+library(HistDAWass)
+Temp <- China_Month[, match(paste0("mean.temp_", month.abb), colnames(China_Month@M))]
+colnames(Temp@M) <- month.abb
+rownames(Temp@M) <- sub("_[0-9]+$", "", rownames(Temp@M))
+flower_plot(Temp, row = "HaErBin", n_levels = 60, scheme = "global",
+            palette = "Blue-Red 3", style = "light")
+```

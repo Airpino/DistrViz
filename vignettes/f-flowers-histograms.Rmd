@@ -1,0 +1,234 @@
+---
+title: "6. Flower plots of histogram data"
+output:
+  rmarkdown::html_vignette:
+    math_method: mathjax
+vignette: >
+  %\VignetteIndexEntry{6. Flower plots of histogram data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 4.5,
+                      dpi = 72, out.width = "100%")
+```
+
+The previous vignette introduced flower plots with discrete distributions
+(ratings on a 1-7 scale), where each value is a petal. This one is about
+**histogram data**, the `MatH` objects of the **HistDAWass** package, where
+each cell is the distribution of a continuous variable and the petals become
+**violins**. Three examples show what flower plots of histograms are good at,
+and the choices that make them readable.
+
+```{r}
+library(DistrViz)
+library(HistDAWass)
+```
+
+## From a histogram to a violin petal
+
+A histogram is first divided into `n_levels` classes of equal width over the
+range of the variable (see the first vignette). For flower plots the default
+is 30 classes, more than for the other plots, because the profile of the
+petal must follow the shape of the distribution. Each class is a slice of the
+petal, as wide as its probability and coloured as its position in the range;
+the profile of the slices is then smoothed with a Gaussian kernel of standard
+deviation `smooth` (in classes, default 1.5). Only the profile is smoothed,
+not the colours.
+
+The three flowers below show the same unit of the `BLOOD` data with 10
+classes and no smoothing, with the defaults, and with 60 classes and a
+stronger smoothing:
+
+```{r, fig.width = 3, fig.height = 3.3, out.width = "32%", fig.show = "hold"}
+flower_plot(BLOOD, row = 1, n_levels = 10, smooth = 0, palette = "Zissou 1",
+            title = "10 classes, no smoothing") +
+  ggplot2::labs(caption = NULL)
+flower_plot(BLOOD, row = 1, palette = "Zissou 1", title = "defaults (30, 1.5)") +
+  ggplot2::labs(caption = NULL)
+flower_plot(BLOOD, row = 1, n_levels = 60, smooth = 3, palette = "Zissou 1",
+            title = "60 classes, smooth = 3") +
+  ggplot2::labs(caption = NULL)
+```
+
+Few classes give a coarse, stepped petal; many classes with a small amount
+of smoothing give a profile close to the density of the histogram.
+
+## Population pyramids lying on their side
+
+`Age_Pyramids_2014` contains, for 229 countries, the histograms of the age of
+the male and of the female population (5-year classes from 0 to 105 years).
+With only two variables a flower has two opposite petals: the male population
+on the right, the female one on the left, the age growing from the centre
+outwards. It is a population pyramid lying on its side.
+
+```{r}
+countries <- c("Niger", "Nigeria", "India", "Brazil", "China", "United States",
+               "Italy", "Japan")
+Ages <- Age_Pyramids_2014[match(countries, rownames(Age_Pyramids_2014@M)), 2:3]
+colnames(Ages@M) <- c("Male", "Female")
+```
+
+The range of the colours and of the stems is set to the whole age range with
+`ranges = c(0, 105)`, and 21 classes match the 5-year classes of the data.
+
+### How wide is a petal? `width_type`
+
+In the original design of the flower plot the width of a petal is an
+*angle*: a petal far from the centre is wider than a petal of the same
+probability near the centre, and its area grows with the distance from the
+centre. This is fine to compare the same value across units, but it distorts
+the comparison along a stem: here it would inflate the old ages. With
+`width_type = "linear"` the width is a distance from the stem, the same at
+every radius, so that it is exactly proportional to the probability. Compare
+the two versions for Niger and Japan:
+
+```{r, fig.height = 2.8}
+flower_grid(Ages, rows = c("Niger", "Japan"), ncol = 2, n_levels = 21,
+            ranges = c(0, 105), palette = "Viridis", labels = TRUE,
+            width_type = "angular")
+flower_grid(Ages, rows = c("Niger", "Japan"), ncol = 2, n_levels = 21,
+            ranges = c(0, 105), palette = "Viridis", labels = TRUE,
+            width_type = "linear")
+```
+
+With angular widths the Japanese petals look heavier at the old ages than
+they are, and the Nigerien petals look thinner at the young ages than they
+are. With linear widths the petals are proper pyramids: half of the
+population of Niger is younger than 15 years, against 13% in Japan, where a
+quarter of the population is 65 or older.
+
+```{r, fig.height = 5}
+flower_grid(Ages, ncol = 4, n_levels = 21, ranges = c(0, 105),
+            palette = "Viridis", labels = TRUE, width_type = "linear")
+```
+
+From Niger to Japan the flowers show the demographic transition: the petals
+move from a wide base near the centre (many children, few old people) to a
+wide body at the middle ages and beyond, with the purple of the young ages
+shrinking and the green and yellow of the adult and old ages growing.
+
+## The summer climate of Chinese stations
+
+`China_Seas` contains, for 60 meteorological stations, the histograms of
+several climatic variables in each season. We take six summer variables,
+measured on different scales: mean temperature (°C), total precipitation
+(mm), relative humidity (%), sunshine duration (hours), wind speed (m/s) and
+cloud amount (%).
+
+```{r}
+vs <- c("mean.temp_Summer", "tot.precip_Summer", "mean.rel.hum_Summer",
+        "sunshine.dur_Summer", "mean.wind.speed_Summer", "mean.cloud.amount_Summer")
+Summer <- China_Seas[, match(vs, colnames(China_Seas@M))]
+colnames(Summer@M) <- c("temperature", "precipitation", "humidity", "sunshine",
+                        "wind", "clouds")
+rownames(Summer@M) <- sub("_[0-9]+$", "", rownames(Summer@M))
+```
+
+Each variable keeps its own range (the default `scheme = "variable"`): the
+distance from the centre is the position of a value among all the stations,
+from the lowest (near the centre, blue) to the highest (at the end of the
+stem, red). The petals are ordered by the shortest Hamiltonian cycle through
+the variables (`var_order = "tsp"`).
+
+### Which petal is the widest? `width_scale`
+
+The width of the petals is relative to the widest one. By default
+(`width_scale = "common"`) the widest petal of the whole plot sets the scale.
+With very different variables this is a problem: the temperature of a
+southern station in summer changes by less than one degree from year to year,
+so its petal is very concentrated, very wide, and makes all the other petals
+thin. With `width_scale = "variable"` each variable has its own scale: widths
+are comparable across stations for the same variable, and every variable uses
+all the space of its sector.
+
+```{r, fig.height = 5.6}
+stations <- c("Hailaer", "WuLuMuQi", "HaMi", "LaSa", "BeiJing", "ShangHai",
+              "KunMing", "HaiKou")
+flower_grid(Summer, rows = stations, ncol = 4, palette = "Zissou 1", labels = TRUE,
+            var_order = "tsp", width_type = "linear", width_scale = "variable")
+```
+
+Each station has a recognisable shape:
+
+* **HaMi** and **WuLuMuQi**, in the deserts of the north-west, have the
+  precipitation, humidity and cloud petals close to the centre and the
+  sunshine petal at the end of its stem (HaMi has the driest and sunniest
+  summer of the 60 stations);
+* **HaiKou**, on the tropical island of Hainan, is the opposite: temperature,
+  precipitation and humidity far from the centre; its temperature petal is a
+  thin, wide sliver because the summer temperature hardly changes from year
+  to year;
+* **KunMing** and **LaSa**, on the high plateaus of the south-west, have
+  cool summers (temperature petals near the centre) and many clouds; KunMing
+  has one of the least sunny summers;
+* **ShangHai** stands out for the wind, the strongest of the selected
+  stations.
+
+The means and the ranks (1 = lowest of the 60 stations) confirm the
+reading:
+
+```{r}
+m <- get.MatH.stats(Summer, stat = "mean")$mat
+cbind(round(m[stations, c("temperature", "precipitation", "sunshine")], 1),
+      rank_sunshine = rank(m[, "sunshine"])[match(stations, rownames(m))])
+```
+
+### All the stations, grouped by cluster
+
+As the other plots of the package, flowers can be grouped by a clustering.
+Here the 60 stations are grouped by a Ward clustering of the six summer
+histograms (computed on the original histograms by `dv_cluster()`), without
+names around the flowers:
+
+```{r, fig.height = 9}
+dv <- dv_data(Summer, n_levels = 30)
+cl <- dv_cluster(dv, cols = FALSE)
+flower_grid(dv, groups = cutree(cl$hc_rows, 4), ncol = 8, palette = "Zissou 1",
+            var_order = "tsp", width_type = "linear", width_scale = "variable",
+            center = "plain")
+```
+
+Cluster 2 collects the six stations of the arid north-west (Yi Ning,
+WuLuMuQi, HaMi, Jiu Quan, ZhangYe, YinChuan), whose flowers have the rain,
+humidity and cloud petals close to the centre; cluster 4 five stations of the
+south-eastern coast (WenZhou, GuangZhou, ShanTou, ZhanJiang, HaiKou), hot and
+wet; clusters 1 and 3 split the rest of the country.
+
+### On the map
+
+`flower_pca()` places each flower at given coordinates; with the longitude and
+the latitude of the stations and a map of China in the background
+(`basemap`, here from `ggplot2::map_data()`, which needs the **maps** package)
+the flowers are centred on their stations. `key_position` puts the key flower,
+the barycenter of the 60 stations, in an empty corner of the map.
+
+```{r, eval = requireNamespace("maps", quietly = TRUE), fig.height = 6.2}
+lonlat <- with(stations_coordinates,
+               cbind(longitude = LON.deg + LON.min / 60, latitude = LAT.deg + LAT.min / 60))
+rownames(lonlat) <- rownames(Summer@M)
+china <- ggplot2::map_data("world", region = c("China", "Taiwan"))
+flower_pca(Summer, lonlat, basemap = china, axis_titles = c("longitude", "latitude"),
+           size = 0.1, palette = "Zissou 1", var_order = "tsp", width_type = "linear",
+           width_scale = "variable", center = "plain", label_size = 1.8,
+           key_position = c(78, 22), key_size = 0.14)
+```
+
+On the map the regional patterns emerge without any clustering: the flowers
+of the north-west have the sunshine petal at the end of the stem and the rain
+and cloud petals close to the centre; going south-east the rain, humidity and
+temperature petals move outwards.
+
+## Summary of the options for histogram data
+
+| option | what it does | suggestion for histograms |
+|---|---|---|
+| `n_levels` | classes used to discretize the histograms | 30 (default) to 60 |
+| `smooth` | smoothing of the profile of the violins (in classes) | 1.5 (default); 0 to see the raw classes |
+| `width_type` | angular (original design) or linear widths | `"linear"` when values along a stem are compared |
+| `width_scale` | which petal sets the width: overall, per unit, per variable | `"variable"` for variables with very different distributions |
+| `ranges`, `scheme` | range of the stems and of the colours | a common range for variables on the same scale (ages, temperatures) |
+| `var_order` | order of the petals | `"tsp"` to put correlated variables side by side |
+| `style`, `center`, `palette` | look of the flower | `style = "light"` for print |
+| `flower_pca(pca, basemap, key_position)` | flowers on a factorial plane or on a map | coordinates of the units as a two-column matrix |

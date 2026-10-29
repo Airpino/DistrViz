@@ -1,0 +1,13 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^cran-comments\.md$
+^README\.Rmd$
+^vignettes/.*\.html$
+^\.github$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^.*\.Rcheck$
+^.*\.tar\.gz$
+^tests/testthat/testthat-problems\.rds$
+^\.gitignore$

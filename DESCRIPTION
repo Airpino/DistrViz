@@ -1,0 +1,35 @@
+Package: DistrViz
+Type: Package
+Title: Green Eyes, Flower Plots and Heatmaps for Distributional Data
+Version: 1.0.0
+Date: 2026-10-29
+Authors@R: person(given = "Antonio", family = "Irpino", role = c("aut", "cre"),
+    email = "antonio.irpino@unicampania.it",
+    comment = c(ORCID = "0000-0001-9293-7180"))
+Description: Graphical tools for distributional data tables, where each cell
+    is a distribution: matrices of histograms ('HistDAWass' MatH objects),
+    matrices of discrete distributions ('DDAWASS' MatD objects) or raw and
+    tabulated discrete data. It draws Green Eyes plots, circular displays of
+    all the distributions observed on a statistical unit, also placed on the
+    factorial plane of a quantile-based principal component analysis (with an
+    interactive version based on 'ggiraph'); difference eyes, showing where the
+    quantile functions of a unit depart from the Wasserstein barycenter; flower
+    plots, where each variable is a stem with petals as wide as the
+    probabilities of its values; and distributional heatmaps, where each cell
+    shows a whole distribution and rows and columns are ordered by
+    Wasserstein-based hierarchical clustering. Variables can be ordered by the
+    shortest Hamiltonian cycle on a correlation distance. Green Eyes plots
+    were introduced in Crocetta, Irpino, Antonucci and Marin (2025)
+    <doi:10.1007/s11135-024-01956-0>; the Wasserstein statistics follow Irpino
+    and Verde (2015) <doi:10.1007/s11634-014-0176-4>.
+License: GPL (>= 3)
+Encoding: UTF-8
+Depends: R (>= 4.0.0)
+Imports: methods, ggplot2 (>= 3.4.0), rlang, stats, grDevices, utils,
+    HistDAWass, DDAWASS
+Suggests: plotly, ggiraph, htmlwidgets, maps, testthat (>= 3.0.0), knitr, rmarkdown, CUB
+VignetteBuilder: knitr
+URL: https://github.com/Airpino/DistrViz
+BugReports: https://github.com/Airpino/DistrViz/issues
+Config/testthat/edition: 3
+RoxygenNote: 7.3.1

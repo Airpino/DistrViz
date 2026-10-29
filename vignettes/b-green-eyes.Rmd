@@ -1,0 +1,300 @@
+---
+title: "2. Green Eyes plots"
+output:
+  rmarkdown::html_vignette:
+    math_method: mathjax
+vignette: >
+  %\VignetteIndexEntry{2. Green Eyes plots}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 4.5,
+                      dpi = 72, out.width = "100%")
+has_cub <- requireNamespace("CUB", quietly = TRUE)
+knitr::opts_chunk$set(eval = has_cub)
+```
+
+```{r, eval = !has_cub, echo = FALSE, results = "asis"}
+cat("**This vignette needs the 'CUB' package (for the `univer` data), which is not installed: code is shown but not run.**")
+```
+
+The **Green Eyes plot** (or Green Eye Iris plot, Crocetta, Irpino, Antonucci
+and Marin, 2025) is a compact picture of *all the distributions observed on a
+single statistical unit*. It was introduced to display the satisfaction of
+the customers of a service with respect to several aspects, but it can be used
+for any row of a distributional data table.
+
+```{r}
+library(DistrViz)
+library(DDAWASS)
+library(ggplot2)
+
+data(univer, package = "CUB")
+univer$Faculty <- factor(sprintf("F%02d", univer$faculty))
+univer$Gender  <- factor(univer$gender, levels = 0:1, labels = c("M", "W"))
+items <- c("informat", "willingn", "officeho", "compete", "global")
+M <- data2MatD(univer, unit = c("Faculty", "Gender"), vars = items,
+               support = 1:7, min.n = 10)
+dv <- dv_data(M, ranges = c(1, 7))
+```
+
+## Reading a Green Eyes plot
+
+Each variable is a **sector** of a circle. Inside the sector the cumulative
+distribution function of the variable is drawn radially, from the inner
+circle (the grey *pupil*, cdf = 0) to the outer circle (cdf = 1): the
+radial thickness of each coloured band is the probability of a value, and its
+colour is the position of the value in the range of the variable (dark red for
+the lowest ratings, dark green for the highest ones).
+
+```{r, fig.width = 4.5, fig.height = 4.5, out.width = "60%", fig.align = "center"}
+gei_plot(dv, row = "F02_W")
+```
+
+The dashed circle is at cdf = 0.5: the colour crossing it is the colour of
+the **median**. A group whose eye is dark green near the pupil has many
+high ratings and few low ones: it has "green eyes". Red and orange bands near
+the pupil reveal a share of dissatisfied respondents.
+
+Compare the eye above with the one of a group with lower satisfaction:
+
+```{r, fig.width = 4.5, fig.height = 4.5, out.width = "60%", fig.align = "center"}
+gei_plot(dv, row = "F13_M")
+```
+
+## Variability and skewness
+
+`show_sd = TRUE` adds, in each sector, a radial bar centred on the median
+circle whose length is proportional to the standard deviation of the
+distribution (relative to the largest standard deviation observed for that
+variable among all the units). `show_skewness = TRUE` adds a tangential tick
+at radial position $(\sqrt[3]{\gamma} + 3)/6$, where $\gamma$ is the skewness:
+ticks inside the median circle mark left-skewed distributions (a long tail
+of low ratings), ticks outside mark right-skewed ones.
+
+```{r, fig.width = 4.5, fig.height = 4.5, out.width = "60%", fig.align = "center"}
+gei_plot(dv, row = "F13_M", show_sd = TRUE, show_skewness = TRUE)
+```
+
+## Order of the sectors
+
+By default the sectors follow the order of the columns. Since neighbouring
+sectors are compared at a glance, it helps to put **similar variables next to
+each other**. Two automatic orders are available.
+
+With `var_order = "tsp"` (alias `"hamiltonian"`) the variables are the nodes of
+a complete graph whose edges are weighted by the correlation distance
+$$d(X_j, X_k) = \sqrt{2\,[1 - r(X_j, X_k)]},$$
+where $r$ is the Wasserstein correlation, and the order is the **shortest
+Hamiltonian cycle** through the variables (a Travelling Salesman Problem).
+Since the sectors lie on a circle, the last variable is adjacent to the
+first one, and a cycle is exactly what is needed. `dv_var_order()` returns the
+cycle and its length:
+
+```{r}
+tsp <- dv_var_order(dv)
+tsp$labels
+round(tsp$dist, 2)
+```
+
+The cycle is computed exactly for up to 9 variables, and with a heuristic
+(nearest-neighbour and random tours improved by 2-opt) for more variables.
+
+```{r, fig.width = 4.5, fig.height = 4.5, out.width = "60%", fig.align = "center"}
+gei_plot(dv, row = "F13_M", var_order = "tsp")
+```
+
+With `var_order = "cluster"` the order is the one of a hierarchical clustering
+of the variables (see `dv_cluster()`); a permutation of the variables can be
+given as well.
+
+## Many units: `gei_grid()`
+
+`gei_grid()` draws one eye per unit. Units can be shown in the order of the
+data, ordered by a hierarchical clustering (`order = "cluster"`), or sorted
+by a partition given in `groups`, whose labels are reported in the facet
+labels. Here we use the Ward clustering of **DDAWASS**:
+
+```{r, fig.height = 6.2}
+hc <- WD_hclust(M, method = "ward.D2")
+gei_grid(dv, groups = cutree(hc, 3), ncol = 7)
+```
+
+The three clusters are immediately recognizable: cluster 2 collects the
+groups with "green eyes", cluster 3 the faculties (F06, F13) with a large share
+of low ratings, cluster 1 the intermediate situations.
+
+The same can be done with the k-means of **DDAWASS**:
+
+```{r, fig.height = 6.2}
+km <- WD_kmeans(M, k = 3, rep = 20)
+gei_grid(dv, groups = km$solution$IDX, ncol = 7)
+```
+
+A subset of units can be selected with `rows`, by index or by name:
+
+```{r, fig.height = 2.8}
+gei_grid(dv, rows = c("F02_M", "F02_W", "F13_M", "F13_W"), ncol = 4)
+```
+
+## Difference eyes: where a unit departs from the others
+
+A Green Eyes plot shows the distributions of a unit; it does not tell, at a
+glance, *how* they differ from those of the other units. `gei_diff()` draws a
+**difference eye**: sectors and radius are those of a Green Eyes plot (the
+radius is the probability level $t$, from $t = 0$ at the pupil to $t = 1$ at
+the border), but the colour is the difference between the quantile function
+of the unit and that of a reference,
+$$D_{ij}(t) = Q_{ij}(t) - \bar{Q}_j(t),$$
+red where the unit is below the reference, green where it is above, white
+where they coincide. By default the reference is the Wasserstein barycenter
+of all the units, whose quantile function is the mean of the quantile
+functions.
+
+```{r, fig.height = 6.5}
+gei_diff(dv, order = "cluster", var_order = "tsp", ncol = 7)
+```
+
+The picture separates the groups that are below the mean profile at every
+probability level (F13, F06: red from the pupil to the border) from those that
+are above it (F02, F05), and those whose difference is concentrated in one
+part of the distribution. For instance, the eyes of F07 are green except in
+one sector, where a red band near the pupil reveals a tail of low ratings that
+the other aspects do not have. The outer border is almost white everywhere:
+all the groups have some top ratings, and the differences are in the low and
+central part of the distributions.
+
+Difference eyes are a picture of the **Wasserstein variance**. The variance of
+variable $j$ is the mean over the units of
+$\int_0^1 D_{ij}(t)^2\,dt$, so the "amount of colour" in a sector is the
+contribution of that cell to the variance. The differences used for the plot
+are returned in the attribute `"diff"`:
+
+```{r}
+D <- attr(gei_diff(dv, levels = 1000), "diff")
+contr <- apply(D^2, c(1, 2), mean)            # units x variables
+rbind(from_eyes = colMeans(contr), WD.var.covar = diag(WD.var.covar(M)))
+round(sort(rowSums(contr) / sum(contr), decreasing = TRUE)[1:5], 3)
+```
+
+The five groups above account for almost half of the total variance.
+
+The reference can also be a unit or a group of units (their barycenter). Here
+the groups of faculties F13 and F06 are compared with the barycenter of the
+"green eyes" cluster found above:
+
+```{r, fig.height = 3.6}
+green <- names(which(cutree(hc, 3) == cutree(hc, 3)["F02_W"]))
+gei_diff(dv, rows = c("F13_M", "F13_W", "F06_M", "F06_W"), reference = green,
+         var_order = "tsp", ncol = 4, labels = TRUE)
+```
+
+With variables on different scales, `scale = "sd"` (the default in that case)
+divides the differences by the Wasserstein standard deviation of each
+variable; `scale = "range"` by its range.
+
+## Eyes on a factorial plane
+
+`gei_pca()` draws the eye of each unit at its position on a factorial plane.
+By default it computes the quantile-based multiple factor analysis of all the
+variables (`DDAWASS::WD.MultiplePCA()` for discrete distributions,
+`HistDAWass::WH.MultiplePCA()` for histograms), but any result with the
+coordinates of the units in `$ind$coord` (or a matrix of coordinates) can be
+given. The diameter of the eyes is `size` (default 0.1) times the smallest of
+the width and the height of the cloud of points, so that an eye never takes
+more than one tenth of the plane in either direction. The outline of the eyes
+can be coloured by a partition.
+
+```{r, fig.height = 5}
+mfa <- WD.MultiplePCA(M, items, quantiles = 10, plots = FALSE)
+gei_pca(dv, mfa, var_order = "tsp", groups = cutree(hc, 3))
+```
+
+On the right, a **key** shows the eye of the barycenter of all the units with
+the names of the variables around the sectors; with `key = "groups"` (and
+`groups`) there is one key eye for the barycenter (prototype) of each group,
+and `key = "none"` removes it. For discrete distributions the barycenter is
+projected on the observed support (`DDAWASS::WD.vec.mean.simplified()`).
+
+```{r, fig.height = 5}
+gei_pca(dv, mfa, var_order = "tsp", groups = cutree(hc, 3), key = "groups")
+```
+
+The first axis orders the groups from the least satisfied (on the left, where
+red and orange appear around the pupil) to the most satisfied ones (on the
+right). Other axes can be chosen with `axes`, and the eyes can be made larger
+with `size`:
+
+```{r, fig.height = 5}
+gei_pca(dv, mfa, axes = c(1, 3), size = 0.15, var_order = "tsp", labels = FALSE)
+```
+
+### Interactive version
+
+With many units the eyes overlap. With `interactive = TRUE` (and the
+**ggiraph** package installed) `gei_pca()` returns an interactive plot:
+
+* hovering an eye shows a tooltip with the name of the unit, its group and its
+  coordinates (over a band of the eye, also the variable, the value and its
+  probability), and fades the other eyes;
+* clicking an eye hides it and leaves its point of application, drawn in red;
+  clicking the point shows the eye again. The lasso buttons of the toolbar
+  hide (or show again) all the eyes in an area, and the reset button shows all
+  of them;
+* the zoom button activates zooming (mouse wheel) and panning (drag);
+* above the plot, two switches show or hide the dashed median circles and the
+  names of all the units, and a slider changes the size of all the eyes (each
+  eye is rescaled around its point of application); the eye under the mouse
+  comes on top of the others;
+* `hidden` gives the units whose eyes are hidden at start.
+
+Try it below (the eyes of F02_M and F02_W, the most satisfied groups, are
+hidden at start: only their red points are visible on the right):
+
+```{r, eval = has_cub && requireNamespace("ggiraph", quietly = TRUE), fig.height = 5}
+gei_pca(dv, mfa, var_order = "tsp", groups = cutree(hc, 3), key = "groups",
+        interactive = TRUE, hidden = c("F02_M", "F02_W"), width_svg = 8)
+```
+
+The controls above the plot can be removed with `controls = FALSE`, and the
+range of the size slider is set by `size_range`. In a Shiny app the hidden
+units are returned in `input$<outputId>_selected`.
+
+## Customizing the plot
+
+The result is a `ggplot` object, which can be modified with the usual
+**ggplot2** tools. The main options are the palette, the size and colour of
+the pupil, the median circle, and the background:
+
+```{r, fig.height = 3}
+gei_grid(dv, rows = c("F02_W", "F13_M", "F06_W"), ncol = 3,
+         palette = "Hiroshige", reverse = TRUE, pupil = 0.5, pupil_color = "white",
+         median_line = FALSE) +
+  labs(title = "Hiroshige palette, white pupil")
+```
+
+With `polar = FALSE` the eye is "unrolled" into stacked bars, which makes it
+easier to read the probabilities:
+
+```{r, fig.width = 5, fig.height = 4, out.width = "70%", fig.align = "center"}
+gei_plot(dv, row = "F13_M", polar = FALSE)
+```
+
+## Histogram data
+
+Green Eyes plots also work with matrices of histograms: each histogram is
+discretized into `n_levels` classes (see the first vignette).
+
+```{r, fig.height = 3.5}
+gei_grid(HistDAWass::BLOOD, rows = 1:6, ncol = 6, n_levels = 15,
+         palette = "Zissou 1")
+```
+
+## Reference
+
+Crocetta C., Irpino A., Antonucci L., Marin C. (2025). A performance indicator
+and its decomposition according to the impacts of different aspects based on
+distributional data. *Quality & Quantity*, 59(3), 2091-2110.
+doi:10.1007/s11135-024-01956-0
