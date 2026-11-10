@@ -18,6 +18,10 @@ maintainer; DDAWASS was published on CRAN on 2026-11-04.
 * checking CRAN incoming feasibility ... NOTE
   New submission.
 
+The words flagged as possibly misspelled in DESCRIPTION are author names
+(Antonucci, Crocetta, Irpino), class names of the 'HistDAWass' and 'DDAWASS'
+packages (MatH, MatD) and technical terms (Wasserstein, barycenter).
+
 ## Notes for the reviewers
 
 * The interactive versions use the suggested packages 'ggiraph' (with
