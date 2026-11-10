@@ -250,10 +250,12 @@ With many units the eyes overlap. With `interactive = TRUE` (and the
   comes on top of the others;
 * `hidden` gives the units whose eyes are hidden at start.
 
-Try it below (the eyes of F02_M and F02_W, the most satisfied groups, are
-hidden at start: only their red points are visible on the right):
+Run the code below in R (it is not run here, to keep the vignette small: an
+interactive plot with all its graphical elements takes several megabytes). The
+eyes of F02_M and F02_W, the most satisfied groups, are hidden at start: only
+their red points are visible on the right.
 
-```{r, eval = has_cub && requireNamespace("ggiraph", quietly = TRUE), fig.height = 5}
+```{r, eval = FALSE}
 gei_pca(dv, mfa, var_order = "tsp", groups = cutree(hc, 3), key = "groups",
         interactive = TRUE, hidden = c("F02_M", "F02_W"), width_svg = 8)
 ```

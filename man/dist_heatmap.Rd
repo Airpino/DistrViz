@@ -83,9 +83,12 @@ variable. Rows and columns can be reordered by hierarchical clustering
 columns) and the dendrograms are drawn on the left and on the top.
 }
 \examples{
+dist_heatmap(DDAWASS::Satisfaction[1:10, ], ranges = c(0, 10))
+\donttest{
 dist_heatmap(DDAWASS::Satisfaction, ranges = c(0, 10))
 dist_heatmap(HistDAWass::BLOOD, n_levels = 20, scheme = "standardized",
              palette = "Zissou 1", style = "dark")
+}
 }
 \references{
 Irpino A., Verde R. (2015). Basic statistics for distributional

@@ -37,5 +37,10 @@ Useful links:
 \author{
 \strong{Maintainer}: Antonio Irpino \email{antonio.irpino@unicampania.it} (\href{https://orcid.org/0000-0001-9293-7180}{ORCID})
 
+Authors:
+\itemize{
+  \item Antonio Irpino \email{antonio.irpino@unicampania.it} (\href{https://orcid.org/0000-0001-9293-7180}{ORCID})
+}
+
 }
 \keyword{internal}

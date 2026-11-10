@@ -2,14 +2,14 @@
 
 This is the first submission of DistrViz.
 
-DistrViz imports DDAWASS (discrete distribution data analysis with the
-Wasserstein distance, same maintainer), available on CRAN since [DATE].
+DistrViz imports DDAWASS (>= 1.0.0) and HistDAWass (>= 1.0.10), by the same
+maintainer; DDAWASS was published on CRAN on 2026-11-04.
 
 ## Test environments
 
-* local Windows 11, R 4.5.x
+* local Windows 11, R 4.5.3
 * win-builder: R-devel and R-release
-* R-hub: linux (R-devel), macos (R-release), windows (R-devel)
+* GitHub Actions: windows-latest, macos-latest (R release), ubuntu-latest (R release and devel)
 
 ## R CMD check results
 
@@ -21,7 +21,6 @@ Wasserstein distance, same maintainer), available on CRAN since [DATE].
 ## Notes for the reviewers
 
 * The interactive versions use the suggested packages 'ggiraph' (with
-  'htmlwidgets') and 'plotly'; examples and vignettes run them only if they
-  are installed.
-* The vignettes use the 'univer' data of the suggested package 'CUB'; without
-  it, the code is shown but not run.
+  'htmlwidgets') and 'plotly'; the maps in the vignettes use 'maps'.
+  Examples and vignettes run them only if they are installed.
+* The vignettes use the 'univer' data of the suggested package 'CUB'.

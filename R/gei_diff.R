@@ -42,9 +42,11 @@
 #'   (units x variables x levels) in the attribute \code{"diff"}.
 #' @examples
 #' dv <- dv_data(DDAWASS::Satisfaction, ranges = c(0, 10))
-#' gei_diff(dv, rows = 1:8, ncol = 4)
+#' gei_diff(dv, rows = 1:4, ncol = 4)
+#' \donttest{
 #' gei_diff(dv, rows = 1:4, reference = "Hotel_01", ncol = 4)
 #' gei_diff(HistDAWass::BLOOD, rows = 1:6, ncol = 3)
+#' }
 #' @export
 gei_diff <- function(x, rows = NULL, reference = "mean", scale = NULL, order = c("data", "cluster"),
                      groups = NULL, ncol = NULL, var_order = NULL, limit = NULL,

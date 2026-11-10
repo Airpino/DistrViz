@@ -117,7 +117,9 @@ histograms) on a grid of \code{levels} probability levels.
 }
 \examples{
 dv <- dv_data(DDAWASS::Satisfaction, ranges = c(0, 10))
-gei_diff(dv, rows = 1:8, ncol = 4)
+gei_diff(dv, rows = 1:4, ncol = 4)
+\donttest{
 gei_diff(dv, rows = 1:4, reference = "Hotel_01", ncol = 4)
 gei_diff(HistDAWass::BLOOD, rows = 1:6, ncol = 3)
+}
 }

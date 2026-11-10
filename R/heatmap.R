@@ -44,9 +44,12 @@
 #' @return a \code{ggplot} object (or a \code{plotly} object), with the
 #'   clustering results in the attribute \code{"clustering"}.
 #' @examples
+#' dist_heatmap(DDAWASS::Satisfaction[1:10, ], ranges = c(0, 10))
+#' \donttest{
 #' dist_heatmap(DDAWASS::Satisfaction, ranges = c(0, 10))
 #' dist_heatmap(HistDAWass::BLOOD, n_levels = 20, scheme = "standardized",
 #'              palette = "Zissou 1", style = "dark")
+#' }
 #' @export
 dist_heatmap <- function(x, cluster_rows = TRUE, cluster_cols = TRUE, row_method = "ward.D2",
                          col_method = "complete", col_dist = c("sqrt(1-r^2)", "1-r", "sqrt(2(1-r))"),
